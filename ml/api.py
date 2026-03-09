@@ -1070,6 +1070,12 @@ async def get_stock_prediction(request: StockRequest):
             stock_data = yf.download(
                 stock_ticker, period=request.period, interval=request.interval, session=custom_session
             )
+            
+            # Flatten multi-level columns if they exist (yfinance => 0.2.40 returns MultiIndex)
+            import pandas as pd
+            if isinstance(stock_data.columns, pd.MultiIndex):
+                stock_data.columns = stock_data.columns.get_level_values(0)
+                
             if stock_data.empty:
                 raise ValueError("No data found for the selected stock")
             
