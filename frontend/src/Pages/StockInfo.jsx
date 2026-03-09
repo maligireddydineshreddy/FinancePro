@@ -296,7 +296,7 @@ const StockInfo = () => {
             const numValue = typeof value === 'number' ? value : parseFloat(value) || 0;
             let displayValue = "";
             if (key === "marketCap" || key === "enterpriseValue") {
-              displayValue = (numValue / 10000000).toFixed(2);
+              displayValue = `${formatNumberWithCommas((numValue / 10000000).toFixed(2))} crores`;
             } else {
               displayValue = formatNumberWithCommas(numValue.toFixed(2));
             }
