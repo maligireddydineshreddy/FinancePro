@@ -14,7 +14,9 @@ import yfinance as yf
 from statsmodels.tsa.ar_model import AutoReg
 import numpy as np
 from cachetools import cached, TTLCache
-from curl_cffi import requests
+from curl_cffi import requests as cffi_requests
+import requests as std_requests
+from bs4 import BeautifulSoup
 import random
 import time
 
@@ -474,15 +476,58 @@ _stock_info_cache = {}
 _stock_info_cache_time = {}
 STOCK_INFO_CACHE_TTL = 300  # Cache successful results for 5 minutes only
 
-def get_random_session():
-    """Create a curl_cffi session that impersonates random real browsers"""
+# Add proxy scraping cache so we don't spam the free proxy provider
+_proxy_list_cache = []
+_proxy_list_time = 0
+
+def get_free_proxies():
+    """Scrape fresh HTTPS proxies from free-proxy-list.net to bypass Render IP bans"""
+    global _proxy_list_cache, _proxy_list_time
+    
+    # Cache proxy list for 10 minutes
+    if time.time() - _proxy_list_time < 600 and _proxy_list_cache:
+        return _proxy_list_cache
+        
+    try:
+        print("[get_free_proxies] Fetching fresh proxies...")
+        url = "https://free-proxy-list.net/"
+        response = std_requests.get(url, timeout=10)
+        soup = BeautifulSoup(response.text, "html.parser")
+        proxies = []
+        # Get top 20 proxies
+        for row in soup.find("table", class_="table").tbody.find_all("tr")[:20]:
+            tds = row.find_all("td")
+            if len(tds) >= 8:
+                ip = tds[0].text.strip()
+                port = tds[1].text.strip()
+                https = tds[6].text.strip()
+                if https == "yes":
+                    proxies.append(f"http://{ip}:{port}")
+                    
+        # Always mix in the local connection (None) just in case the Render IP gets unbanned
+        proxies.insert(0, None)
+        _proxy_list_cache = proxies
+        _proxy_list_time = time.time()
+        print(f"[get_free_proxies] Found {len(proxies)-1} proxies.")
+        return proxies
+    except Exception as e:
+        print(f"[get_free_proxies] Failed to scrape: {e}")
+        return [None]
+
+def get_random_session(proxy=None):
+    """Create a curl_cffi session that impersonates random real browsers and optionally routes through a proxy"""
     impersonations = ["chrome110", "chrome120", "safari15_3", "safari15_5", "edge101"]
     browser = random.choice(impersonations)
-    print(f"[get_random_session] Impersonating: {browser}")
-    return requests.Session(impersonate=browser)
+    print(f"[get_random_session] Impersonating: {browser} | Proxy: {proxy}")
+    
+    if proxy:
+        proxy_dict = {"http": proxy, "https": proxy}
+        return cffi_requests.Session(impersonate=browser, proxies=proxy_dict)
+    
+    return cffi_requests.Session(impersonate=browser)
 
 # Function to fetch the stock info (NO @cached — we only cache GOOD results manually)
-def fetch_stock_info(stock_ticker):
+def fetch_stock_info(stock_ticker, proxy=None):
     # Check manual cache first
     if stock_ticker in _stock_info_cache:
         cache_age = time.time() - _stock_info_cache_time.get(stock_ticker, 0)
@@ -490,8 +535,8 @@ def fetch_stock_info(stock_ticker):
             print(f"[fetch_stock_info] Cache hit for {stock_ticker}")
             return _stock_info_cache[stock_ticker]
     
-    # Generate a random browser session to bypass IP bans
-    custom_session = get_random_session()
+    # Generate a random browser session with optional proxy to bypass IP bans
+    custom_session = get_random_session(proxy)
     
     print(f"[fetch_stock_info] Fetching fresh data for {stock_ticker}")
     stock_data = yf.Ticker(stock_ticker, session=custom_session)
@@ -612,19 +657,32 @@ async def get_stock_info(request: StockRequest):
     stock_ticker = f"{ticker_symbol}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
     print(f"[get_stock_info] Stock Key: {request.stock} -> Ticker: {stock_ticker}")
     
-    # Fetch the stock info from the API
-    try:
-        stock_data_info = fetch_stock_info(stock_ticker)
-        # If API returns an error dict with rate limiting
-        if isinstance(stock_data_info, dict) and "rate limit" in str(stock_data_info).lower():
-            raise Exception("Rate limited")
-    except Exception as e:
-        import traceback
-        error_details = str(e)
-        print(f"Yahoo Finance blocked the IP or threw error: {error_details}. Generating graceful realistic fallback data.")
+    # Try fetching up to 3 times using different free proxies if the Render IP is rate-limited
+    max_retries = 3
+    proxies = get_free_proxies()
+    # Shuffle proxies to distribute load, but keep None (local IP) at the front for the first try
+    proxies_to_try = [proxies[0]] + random.sample(proxies[1:], min(3, len(proxies)-1)) if len(proxies) > 1 else [None]
+    
+    stock_data_info = None
+    last_error = None
+    
+    for attempt, proxy in enumerate(proxies_to_try):
+        try:
+            print(f"[get_stock_info] Attempt {attempt+1}/{len(proxies_to_try)} with proxy {proxy}")
+            stock_data_info = fetch_stock_info(stock_ticker, proxy=proxy)
+            # If successful, break out of retry loop
+            break
+        except Exception as e:
+            last_error = str(e)
+            print(f"[get_stock_info] Attempt {attempt+1} failed: {last_error}")
+            continue
+            
+    # If all attempts failed
+    if stock_data_info is None:
+        print(f"Yahoo Finance blocked the IP & Proxy Hack failed. Generating graceful realistic fallback data.")
         # Graceful Fallback Data to prevent app crash on Render IPs
         stock_data_info = {
-            "Basic Information": {"longName": request.stock, "currency": f"ERR: {error_details}", "exchange": request.stock_exchange, "symbol": stock_ticker},
+            "Basic Information": {"longName": request.stock, "currency": f"ERR: {last_error}", "exchange": request.stock_exchange, "symbol": stock_ticker},
             "Market Data": {"currentPrice": 2450.50, "previousClose": 2430.10, "open": 2435.00, "dayLow": 2410.20, "dayHigh": 2465.80, "fiftyTwoWeekLow": 1900.00, "fiftyTwoWeekHigh": 2800.00, "fiftyDayAverage": 2350.00},
             "Volume and Shares": {"volume": 12500000, "regularMarketVolume": 12500000, "sharesOutstanding": 6500000000, "impliedSharesOutstanding": 6500000000, "floatShares": 3200000000},
             "Dividends and Yield": {"dividendRate": 15.50, "dividendYield": 0.0065, "payoutRatio": 0.15},
@@ -1000,19 +1058,39 @@ async def get_stock_prediction(request: StockRequest):
     stock_ticker = f"{ticker_symbol}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
     print(f"[get_stock_prediction] Stock Key: {request.stock} -> Ticker: {stock_ticker}")
     
-    # Fetch stock data (historical) using rotating browser impersonation session
-    custom_session = get_random_session()
+    # Fetch stock data (historical) using rotating browser impersonation session and proxies
+    proxies = get_free_proxies()
+    proxies_to_try = [proxies[0]] + random.sample(proxies[1:], min(3, len(proxies)-1)) if len(proxies) > 1 else [None]
+    
+    stock_data = None
+    stock_info = None
+    
+    for attempt, proxy in enumerate(proxies_to_try):
+        try:
+            custom_session = get_random_session(proxy)
+            stock_data = yf.download(
+                stock_ticker, period=request.period, interval=request.interval, session=custom_session
+            )
+            if stock_data.empty:
+                raise ValueError("No data found for the selected stock")
+            
+            # Get stock name for news fetching
+            stock_info = yf.Ticker(stock_ticker, session=custom_session)
+            
+            # Success! Escape retry loop
+            break
+        except Exception as e:
+            print(f"[get_stock_prediction] Attempt {attempt+1} failed with proxy {proxy}: {e}")
+            stock_data = None
+            continue
+            
+    if stock_data is None:
+        print("[get_stock_prediction] All attempts failed to fetch historical data via free proxies.")
+        raise ValueError("Error fetching stock data from Yahoo Finance due to rate limiting.")
+        
+    stock_name = stock_info.info.get('longName', request.stock)
+    
     try:
-        stock_data = yf.download(
-            stock_ticker, period=request.period, interval=request.interval, session=custom_session
-        )
-        if stock_data.empty:
-            raise ValueError("No data found for the selected stock")
-        
-        # Get stock name for news fetching
-        stock_info = yf.Ticker(stock_ticker, session=custom_session)
-        stock_name = stock_info.info.get('longName', request.stock)
-        
         # Fetch stock prediction (train, test, forecast, predictions) with sentiment
         train_df, test_df, forecast, predictions, sentiment_score, news_articles = generate_stock_prediction(stock_ticker, stock_name)
 
