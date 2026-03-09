@@ -368,10 +368,13 @@ def fetch_stocks():
         
         if os.path.exists(csv_path):
             df = pd.read_csv(csv_path)
-            # Filter the data
-            df = df[["Security Code", "Issuer Name"]]
-            # Create a dictionary
-            stock_dict = dict(zip(df["Security Code"], df["Issuer Name"]))
+            # Filter the data - use Security Id as key (Yahoo Finance ticker symbol)
+            df = df[["Security Code", "Issuer Name", "Security Id"]]
+            # Drop rows without a Security Id (can't look up on Yahoo Finance)
+            df = df.dropna(subset=["Security Id"])
+            df = df[df["Security Id"].astype(str).str.strip() != ""]
+            # Create a dictionary keyed by Security Id (ticker symbol) -> Issuer Name
+            stock_dict = dict(zip(df["Security Id"].astype(str).str.strip(), df["Issuer Name"]))
             # Cache the result
             _stocks_cache = stock_dict
             return stock_dict
@@ -558,7 +561,8 @@ async def get_stock_info(request: StockRequest):
         raise HTTPException(status_code=400, detail="Invalid stock selected")
     
     # Build the stock ticker based on the exchange selected
-    stock_ticker = f"{stock_dict[request.stock]}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
+    # request.stock is now the Security Id (e.g., "ABB", "TCS") which is the Yahoo Finance ticker
+    stock_ticker = f"{request.stock}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
     
     # Fetch the stock info from the API
     try:
@@ -942,7 +946,8 @@ async def get_stock_prediction(request: StockRequest):
         raise HTTPException(status_code=400, detail="Invalid stock selected")
     
     # Build the stock ticker based on the exchange selected
-    stock_ticker = f"{stock_dict[request.stock]}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
+    # request.stock is now the Security Id (e.g., "ABB", "TCS") which is the Yahoo Finance ticker
+    stock_ticker = f"{request.stock}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
     
     # Fetch stock data (historical)
     try:
