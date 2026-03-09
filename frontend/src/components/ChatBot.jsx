@@ -24,7 +24,7 @@ const ChatBot = () => {
   // Improved AI response generator with better accuracy
   const generateAIResponse = (userMessage) => {
     const message = userMessage.toLowerCase().trim();
-    
+
     // Check for greetings first
     if (/^(hello|hi|hey|good morning|good afternoon|good evening|greetings)/i.test(message)) {
       return "Hello! I'm here to help with general financial information. I can assist with budgeting tips, basic investment concepts, savings strategies, and general financial planning. What would you like to know?";
@@ -45,8 +45,13 @@ const ChatBot = () => {
       return "**Effective Saving Strategies:**\n\n1. **Emergency Fund First**: Build 3-6 months of expenses in a liquid account\n2. **Automate Savings**: Set up automatic transfers (pay yourself first)\n3. **Start Small**: Even ₹1,000-5,000/month makes a difference\n4. **High-Interest Account**: Keep emergency funds in liquid mutual funds or high-yield savings\n5. **Separate Accounts**: Use different accounts for different goals\n\n📊 Use our Budget Planner to set and track savings goals.\n\n⚠️ Disclaimer: Savings rates and returns vary. Research current rates.";
     }
 
+    // Specific exact queries
+    if (message.match(/\bsip\b/i) || message.match(/what is sip/i)) {
+      return "**Systematic Investment Plan (SIP)** is a method of investing a fixed sum regularly in a mutual fund scheme. \n\nIt allows you to buy units on a given date each month, helping you average out your cost of investing and benefit from the power of compounding without needing to time the market.";
+    }
+
     // Investment - be careful here, provide general info only
-    if (message.match(/invest|investment|mutual fund|sip|equity|portfolio/i)) {
+    if (message.match(/invest|investment|mutual fund|equity|portfolio/i)) {
       return "**Basic Investment Concepts:**\n\n1. **Diversification**: Don't put all money in one asset class\n2. **Time Horizon**: Match investments to goals (long-term = equity, short-term = debt)\n3. **SIP Benefits**: Systematic Investment Plans reduce timing risk\n4. **Risk vs Return**: Higher returns usually mean higher risk\n5. **Research First**: Understand what you're investing in\n\n📈 Use our Stock Information and Prediction tools for stock analysis.\n\n⚠️ Important: Investments are subject to market risks. Past performance doesn't guarantee future results. Consult a SEBI-registered advisor before investing.";
     }
 
@@ -127,9 +132,8 @@ const ChatBot = () => {
       {/* Floating Chat Button */}
       <button
         onClick={() => setChatOpen(!chatOpen)}
-        className={`fixed bottom-6 right-6 z-50 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-full shadow-2xl hover:shadow-3xl transform hover:scale-110 transition-all duration-300 flex items-center gap-2 ${
-          chatOpen ? "hidden" : ""
-        }`}
+        className={`fixed bottom-6 right-6 z-50 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 rounded-full shadow-2xl hover:shadow-3xl transform hover:scale-110 transition-all duration-300 flex items-center gap-2 ${chatOpen ? "hidden" : ""
+          }`}
         aria-label="Open Chat"
       >
         <FaComments className="text-xl" />
@@ -175,11 +179,10 @@ const ChatBot = () => {
                 className={`flex ${msg.user ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl p-3 ${
-                    msg.user
+                  className={`max-w-[85%] rounded-2xl p-3 ${msg.user
                       ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
                       : "bg-white text-gray-800 shadow-md border border-gray-200"
-                  }`}
+                    }`}
                 >
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.message}</p>
                 </div>

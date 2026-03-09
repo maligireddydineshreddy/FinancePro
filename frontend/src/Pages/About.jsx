@@ -48,11 +48,11 @@ const HomePage = () => {
 
       {/* Bills Due Tomorrow Modal */}
       {showModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in p-4"
           onClick={() => setShowModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
@@ -108,7 +108,7 @@ const HomePage = () => {
           <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
         </div>
-        
+
         <div className="container mx-auto text-center relative z-10 px-4">
           <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in-up">
             Manage Your Finances with <span className="text-yellow-300">Ease</span>
@@ -137,7 +137,7 @@ const HomePage = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
-                img: "https://www.freshbooks.com/wp-content/uploads/2022/02/expense-tracking.jpg",
+                img: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800",
                 title: "Track Expenses",
                 desc: "Easily keep track of all your transactions and manage your spending habits.",
                 gradient: "from-blue-500 to-cyan-500",
@@ -212,7 +212,7 @@ const HomePage = () => {
             Have any questions or need help? Reach out to us, and we'll be happy
             to assist you!
           </p>
-          <button 
+          <button
             onClick={() => setShowContactModal(true)}
             className="btn-primary text-lg px-8 py-4 animate-fade-in-up animation-delay-400"
           >
@@ -223,11 +223,11 @@ const HomePage = () => {
 
       {/* Contact Modal */}
       {showContactModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in p-4"
           onClick={() => setShowContactModal(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
@@ -244,7 +244,7 @@ const HomePage = () => {
             <div className="space-y-4">
               <div className="p-5 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border-l-4 border-indigo-500 hover:shadow-lg transition-shadow duration-300">
                 <p className="text-gray-700 font-semibold mb-2">Email 1:</p>
-                <a 
+                <a
                   href="mailto:maligireddydineshreddy@gmail.com"
                   className="text-indigo-600 hover:text-indigo-800 break-all font-medium transition-colors"
                 >
@@ -253,7 +253,7 @@ const HomePage = () => {
               </div>
               <div className="p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border-l-4 border-purple-500 hover:shadow-lg transition-shadow duration-300">
                 <p className="text-gray-700 font-semibold mb-2">Email 2:</p>
-                <a 
+                <a
                   href="mailto:pramodmalipatil64@gmail.com"
                   className="text-purple-600 hover:text-purple-800 break-all font-medium transition-colors"
                 >
