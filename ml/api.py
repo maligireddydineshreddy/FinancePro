@@ -370,15 +370,20 @@ def fetch_stocks():
         
         if os.path.exists(csv_path):
             df = pd.read_csv(csv_path)
-            # Build dict: company name (Issuer Name) -> ticker symbol (Security Id)
-            # This makes the dropdown show company names ("HDFC Bank Ltd") instead of tickers
+            # Build dict: company name -> ticker symbol
+            # NOTE: pandas reads the CSV data columns differently than header names
+            # row["Issuer Name"] actually contains ticker (e.g., "ABB")
+            # row["Security Id"] actually contains company name (e.g., "ABB India Limited")
             stock_dict = {}
             for idx in range(len(df)):
                 row = df.iloc[idx]
-                ticker = str(row["Security Id"]).strip() if pd.notna(row["Security Id"]) else ""
-                name = str(row["Issuer Name"]).strip() if pd.notna(row["Issuer Name"]) else ""
-                if ticker and ticker != "nan" and name and name != "nan":
-                    stock_dict[name] = ticker
+                # IMPORTANT: column names are misleading in this CSV!
+                # "Issuer Name" column contains the ticker symbol
+                # "Security Id" column contains the company name
+                actual_ticker = str(row["Issuer Name"]).strip() if pd.notna(row["Issuer Name"]) else ""
+                actual_name = str(row["Security Id"]).strip() if pd.notna(row["Security Id"]) else ""
+                if actual_ticker and actual_ticker != "nan" and actual_name and actual_name != "nan":
+                    stock_dict[actual_name] = actual_ticker
             print(f"[fetch_stocks] Loaded {len(stock_dict)} stocks.")
             print(f"[fetch_stocks] Sample: {list(stock_dict.items())[:3]}")
             # Cache the result
