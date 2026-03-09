@@ -370,15 +370,15 @@ def fetch_stocks():
         
         if os.path.exists(csv_path):
             df = pd.read_csv(csv_path)
-            # Build dict: ticker symbol (Security Id) -> company name (Issuer Name)
-            # This makes the dropdown show tickers ("HDFCBANK") instead of names
+            # Build dict: company name (Issuer Name) -> ticker symbol (Security Id)
+            # This makes the dropdown show company names ("HDFC Bank Ltd") instead of tickers
             stock_dict = {}
             for idx in range(len(df)):
                 row = df.iloc[idx]
                 ticker = str(row["Security Id"]).strip() if pd.notna(row["Security Id"]) else ""
                 name = str(row["Issuer Name"]).strip() if pd.notna(row["Issuer Name"]) else ""
                 if ticker and ticker != "nan" and name and name != "nan":
-                    stock_dict[ticker] = name
+                    stock_dict[name] = ticker
             print(f"[fetch_stocks] Loaded {len(stock_dict)} stocks.")
             print(f"[fetch_stocks] Sample: {list(stock_dict.items())[:3]}")
             # Cache the result
@@ -388,26 +388,26 @@ def fetch_stocks():
             # If file doesnt exist, return a default list
             print(f"Warning: {csv_path} not found. Using default stock list.")
             default_stocks = {
-                "RELIANCE": "Reliance Industries Ltd",
-                "TCS": "Tata Consultancy Services Ltd",
-                "HDFCBANK": "HDFC Bank Ltd",
-                "INFY": "Infosys Ltd",
-                "ICICIBANK": "ICICI Bank Ltd",
-                "HINDUNILVR": "Hindustan Unilever Ltd",
-                "SBIN": "State Bank of India",
-                "BHARTIARTL": "Bharti Airtel Ltd",
-                "ITC": "ITC Ltd",
-                "KOTAKBANK": "Kotak Mahindra Bank Ltd",
-                "LT": "Larsen & Toubro Ltd",
-                "AXISBANK": "Axis Bank Ltd",
-                "HCLTECH": "HCL Technologies Ltd",
-                "ASIANPAINT": "Asian Paints Ltd",
-                "MARUTI": "Maruti Suzuki India Ltd",
-                "TITAN": "Titan Company Ltd",
-                "SUNPHARMA": "Sun Pharmaceutical Industries Ltd",
-                "BAJFINANCE": "Bajaj Finance Ltd",
-                "WIPRO": "Wipro Ltd",
-                "NESTLEIND": "Nestle India Ltd"
+            "Reliance Industries Ltd": "RELIANCE",
+            "Tata Consultancy Services Ltd": "TCS",
+            "HDFC Bank Ltd": "HDFCBANK",
+            "Infosys Ltd": "INFY",
+            "ICICI Bank Ltd": "ICICIBANK",
+            "Hindustan Unilever Ltd": "HINDUNILVR",
+            "State Bank of India": "SBIN",
+            "Bharti Airtel Ltd": "BHARTIARTL",
+            "ITC Ltd": "ITC",
+            "Kotak Mahindra Bank Ltd": "KOTAKBANK",
+            "Larsen & Toubro Ltd": "LT",
+            "Axis Bank Ltd": "AXISBANK",
+            "HCL Technologies Ltd": "HCLTECH",
+            "Asian Paints Ltd": "ASIANPAINT",
+            "Maruti Suzuki India Ltd": "MARUTI",
+            "Titan Company Ltd": "TITAN",
+            "Sun Pharmaceutical Industries Ltd": "SUNPHARMA",
+            "Bajaj Finance Ltd": "BAJFINANCE",
+            "Wipro Ltd": "WIPRO",
+            "Nestle India Ltd": "NESTLEIND"
             }
             # Cache the default stocks
             _stocks_cache = default_stocks
@@ -417,26 +417,26 @@ def fetch_stocks():
         import traceback
         traceback.print_exc()
         default_stocks = {
-            "RELIANCE": "Reliance Industries Ltd",
-            "TCS": "Tata Consultancy Services Ltd",
-            "HDFCBANK": "HDFC Bank Ltd",
-            "INFY": "Infosys Ltd",
-            "ICICIBANK": "ICICI Bank Ltd",
-            "HINDUNILVR": "Hindustan Unilever Ltd",
-            "SBIN": "State Bank of India",
-            "BHARTIARTL": "Bharti Airtel Ltd",
-            "ITC": "ITC Ltd",
-            "KOTAKBANK": "Kotak Mahindra Bank Ltd",
-            "LT": "Larsen & Toubro Ltd",
-            "AXISBANK": "Axis Bank Ltd",
-            "HCLTECH": "HCL Technologies Ltd",
-            "ASIANPAINT": "Asian Paints Ltd",
-            "MARUTI": "Maruti Suzuki India Ltd",
-            "TITAN": "Titan Company Ltd",
-            "SUNPHARMA": "Sun Pharmaceutical Industries Ltd",
-            "BAJFINANCE": "Bajaj Finance Ltd",
-            "WIPRO": "Wipro Ltd",
-            "NESTLEIND": "Nestle India Ltd"
+            "Reliance Industries Ltd": "RELIANCE",
+            "Tata Consultancy Services Ltd": "TCS",
+            "HDFC Bank Ltd": "HDFCBANK",
+            "Infosys Ltd": "INFY",
+            "ICICI Bank Ltd": "ICICIBANK",
+            "Hindustan Unilever Ltd": "HINDUNILVR",
+            "State Bank of India": "SBIN",
+            "Bharti Airtel Ltd": "BHARTIARTL",
+            "ITC Ltd": "ITC",
+            "Kotak Mahindra Bank Ltd": "KOTAKBANK",
+            "Larsen & Toubro Ltd": "LT",
+            "Axis Bank Ltd": "AXISBANK",
+            "HCL Technologies Ltd": "HCLTECH",
+            "Asian Paints Ltd": "ASIANPAINT",
+            "Maruti Suzuki India Ltd": "MARUTI",
+            "Titan Company Ltd": "TITAN",
+            "Sun Pharmaceutical Industries Ltd": "SUNPHARMA",
+            "Bajaj Finance Ltd": "BAJFINANCE",
+            "Wipro Ltd": "WIPRO",
+            "Nestle India Ltd": "NESTLEIND"
         }
         # Cache the default stocks
         _stocks_cache = default_stocks
@@ -595,9 +595,10 @@ async def get_stock_info(request: StockRequest):
     if request.stock not in stock_dict:
         raise HTTPException(status_code=400, detail="Invalid stock selected")
     
-    # The dropdown passes the ticker (Security Id) directly
-    # e.g., request.stock is "HDFCBANK"
-    stock_ticker = f"{request.stock}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
+    # The dropdown passes the company name directly
+    # e.g., request.stock is "HDFC Bank Ltd", we get the ticker "HDFCBANK" from the dict
+    ticker_symbol = stock_dict[request.stock]
+    stock_ticker = f"{ticker_symbol}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
     print(f"[get_stock_info] Stock Key: {request.stock} -> Ticker: {stock_ticker}")
     
     # Fetch the stock info from the API
@@ -981,8 +982,9 @@ async def get_stock_prediction(request: StockRequest):
     if request.stock not in stock_dict:
         raise HTTPException(status_code=400, detail="Invalid stock selected")
     
-    # The dropdown passes the ticker (Security Id) directly
-    stock_ticker = f"{request.stock}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
+    # The dropdown passes the company name directly
+    ticker_symbol = stock_dict[request.stock]
+    stock_ticker = f"{ticker_symbol}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
     print(f"[get_stock_prediction] Stock Key: {request.stock} -> Ticker: {stock_ticker}")
     
     # Fetch stock data (historical) using custom session
