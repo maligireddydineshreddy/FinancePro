@@ -62,27 +62,19 @@ def get_sentiment_model():
 
 app = FastAPI()
 
-# CORS middleware - allow all origins by default, or specific origins if configured
-# Empty origins list + allow_origin_regex=".*" allows all origins with credentials
-if origins:
-    # Specific origins configured - use them with credentials
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-else:
-    # No origins configured - allow all origins (for production flexibility)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origin_regex=".*",  # Allow all origins using regex
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
+# CORS middleware - Explicitly allow React frontend domains
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://www.financepro.life",
+        "https://financepro.life"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/health")
 async def health_check():
@@ -769,14 +761,14 @@ def fetch_stock_history(stock_ticker, period, interval):
     return stock_data_history
 
 @cached(cache=stock_cache)
-def fetch_stock_news(stock_ticker, stock_name, max_articles=10):
+def fetch_stock_news(stock_ticker, stock_name, max_articles=10, session=None):
     """
     Fetch recent news articles for a stock.
     Returns a list of dictionaries with title, link, publisher, and timestamp.
     """
     try:
-        # Use yfinance to get news
-        stock = yf.Ticker(stock_ticker)
+        # Use yfinance to get news using the proxy session
+        stock = yf.Ticker(stock_ticker, session=session)
         news_list = stock.news[:max_articles]  # Get recent news
         
         if not news_list:
@@ -918,11 +910,11 @@ def apply_sentiment_adjustment(base_forecast, sentiment_score, volatility_factor
     adjusted_forecast = base_forecast * (1 + adjustment_factor)
     return adjusted_forecast
 
-def generate_stock_prediction(stock_ticker, stock_name=None):
+def generate_stock_prediction(stock_ticker, stock_name=None, session=None):
     # Try to generate the predictions
     try:
-        # Pull the data for the first security
-        stock_data = yf.Ticker(stock_ticker)
+        # Pull the data for the first security with the proxy session
+        stock_data = yf.Ticker(stock_ticker, session=session)
 
         # Extract the data for last 1yr with 1d interval
         stock_data_hist = stock_data.history(period="2y", interval="1d")
@@ -951,13 +943,13 @@ def generate_stock_prediction(stock_ticker, stock_name=None):
         # Predict 90 days into the future (base forecast)
         base_forecast = ar_model.predict(
             start=test_df.index[0],
-            end=test_df.index[-1] + dt.timedelta(days=90),
+            end=test_df.index[-1] + timedelta(days=90),
             dynamic=True,
         )
         
         # Fetch news and analyze sentiment
         if stock_name:
-            sentiment_score, news_articles = fetch_stock_news(stock_ticker, stock_name)
+            sentiment_score, news_articles = fetch_stock_news(stock_ticker, stock_name, session=session)
         else:
             sentiment_score = 0.0
             news_articles = []
@@ -994,8 +986,14 @@ def generate_stock_prediction(stock_ticker, stock_name=None):
         
         # Build the adjusted forecast
         adjusted_forecast = base_forecast.copy()
-        
-        np.random.seed(42)  # Reproducible noise
+        import hashlib
+        # Generate a unique reproducible seed based on the stock name, so it's consistent for the same stock but distinct for different ones
+        if stock_name:
+            seed_val = int(hashlib.md5(stock_name.encode('utf-8')).hexdigest(), 16) % (2**32)
+            np.random.seed(seed_val)
+        else:
+            np.random.seed(42)  # Fallback
+
         current_price = last_price
         
         for i, date in enumerate(adjusted_forecast.index):
@@ -1045,6 +1043,7 @@ class StockRequest(BaseModel):
     interval: str
 
 # Endpoint to get stock data and predictions
+@app.options("/get_stock_prediction")
 @app.post("/get_stock_prediction", response_model=dict)
 async def get_stock_prediction(request: StockRequest):
     stock_dict = fetch_stocks()
@@ -1091,8 +1090,8 @@ async def get_stock_prediction(request: StockRequest):
     stock_name = stock_info.info.get('longName', request.stock)
     
     try:
-        # Fetch stock prediction (train, test, forecast, predictions) with sentiment
-        train_df, test_df, forecast, predictions, sentiment_score, news_articles = generate_stock_prediction(stock_ticker, stock_name)
+        # Fetch stock prediction (train, test, forecast, predictions) with sentiment using proxy session
+        train_df, test_df, forecast, predictions, sentiment_score, news_articles = generate_stock_prediction(stock_ticker, stock_name, session=custom_session)
 
         # Check if predictions are valid
         if train_df is None or (forecast is None) or (predictions is None):
@@ -1125,12 +1124,18 @@ async def get_stock_prediction(request: StockRequest):
             }
         }
     except Exception as e:
+        import traceback
         print(f"Yahoo Finance blocked the IP for predictions: {str(e)}. Generating realistic mock graph data.")
+        traceback.print_exc()
         
         import pandas as pd
         import datetime as dt
         import numpy as np
-        np.random.seed(42)  # For consistent demo
+        import hashlib
+        
+        # Unique seed per stock to prevent identical fallback graphs
+        seed_val = int(hashlib.md5(request.stock.encode('utf-8')).hexdigest(), 16) % (2**32)
+        np.random.seed(seed_val) 
         
         end_date = dt.datetime.now()
         start_date = end_date - dt.timedelta(days=365) # 1 year simulated
