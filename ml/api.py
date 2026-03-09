@@ -468,8 +468,17 @@ def fetch_stock_info(stock_ticker):
     # Pull the data for the first security
     stock_data = yf.Ticker(stock_ticker)
 
-    # Extract full of the stock
+    # Extract full info of the stock
     stock_data_info = stock_data.info
+    
+    # Check if Yahoo Finance returned actual data (Render IPs often get blocked)
+    if not stock_data_info or len(stock_data_info) <= 1:
+        raise Exception(f"Yahoo Finance returned empty data for {stock_ticker} (likely IP blocked)")
+    
+    # Check if essential price data is present
+    has_price = stock_data_info.get("currentPrice") or stock_data_info.get("regularMarketPrice") or stock_data_info.get("previousClose")
+    if not has_price:
+        raise Exception(f"Yahoo Finance returned no price data for {stock_ticker} (likely rate limited)")
 
     # Function to safely get value from dictionary or return "N/A"
     def safe_get(data_dict, key):
