@@ -1,0 +1,74 @@
+REPLACE THIS SECTION in ml/api.py (lines 22-50):
+
+OLD CODE (DELETE THIS):
+# Get CORS origins from environment variable or use defaults
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
+if cors_origins_env:
+    origins = [origin.strip() for origin in cors_origins_env.split(",")]
+else:
+    origins = [
+        "http://localhost",
+        "http://localhost:5173",
+        "*"  # Allow all in development
+    ]
+
+# Global variables
+file = "users_data.json"
+
+# Download sentiment model
+model_size = os.getenv("SENTIMENT_MODEL_SIZE", "small")
+SentimentModel.download(model_size)
+sentiment_model = SentimentModel(model_size)
+
+app = FastAPI()
+
+# CORS middleware - restrict to specific origins in production
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins if "*" not in origins else ["*"],  # Use environment origins or allow all
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
+
+
+NEW CODE (REPLACE WITH THIS):
+# Get CORS origins from environment variable or use defaults
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
+if cors_origins_env:
+    origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+else:
+    # Default: allow all origins (empty list means allow all in FastAPI)
+    origins = []
+
+# Global variables
+file = "users_data.json"
+
+# Download sentiment model
+model_size = os.getenv("SENTIMENT_MODEL_SIZE", "small")
+SentimentModel.download(model_size)
+sentiment_model = SentimentModel(model_size)
+
+app = FastAPI()
+
+# CORS middleware - allow all origins by default, or specific origins if configured
+# Empty origins list + allow_origin_regex=".*" allows all origins with credentials
+if origins:
+    # Specific origins configured - use them with credentials
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    # No origins configured - allow all origins (for production flexibility)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=".*",  # Allow all origins using regex
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
