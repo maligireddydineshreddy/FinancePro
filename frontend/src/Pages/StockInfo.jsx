@@ -144,31 +144,31 @@ const StockInfo = () => {
       <div className="space-y-6">
         {/* Key Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {marketData["currentPrice"] && (
+          {marketData["Current Price"] && (
             <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-xl">
               <div className="text-sm opacity-90 mb-2">Current Price</div>
-              <div className="text-3xl font-bold mb-1">₹{formatNumberWithCommas(parseFloat(marketData["currentPrice"]).toFixed(2))}</div>
-              <div className="text-sm opacity-75">{basicInfo["symbol"] || ""}</div>
+              <div className="text-3xl font-bold mb-1">₹{formatNumberWithCommas(parseFloat(marketData["Current Price"]).toFixed(2))}</div>
+              <div className="text-sm opacity-75">{basicInfo["Symbol"] || ""}</div>
             </div>
           )}
-          {marketData["fiftyTwoWeekHigh"] && (
+          {marketData["52 Week High"] && (
             <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-xl">
               <div className="text-sm opacity-90 mb-2">52 Week High</div>
-              <div className="text-3xl font-bold mb-1">₹{formatNumberWithCommas(parseFloat(marketData["fiftyTwoWeekHigh"]).toFixed(2))}</div>
+              <div className="text-3xl font-bold mb-1">₹{formatNumberWithCommas(parseFloat(marketData["52 Week High"]).toFixed(2))}</div>
               <div className="text-sm opacity-75">All Time High</div>
             </div>
           )}
-          {marketData["fiftyTwoWeekLow"] && (
+          {marketData["52 Week Low"] && (
             <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-2xl p-6 text-white shadow-xl">
               <div className="text-sm opacity-90 mb-2">52 Week Low</div>
-              <div className="text-3xl font-bold mb-1">₹{formatNumberWithCommas(parseFloat(marketData["fiftyTwoWeekLow"]).toFixed(2))}</div>
+              <div className="text-3xl font-bold mb-1">₹{formatNumberWithCommas(parseFloat(marketData["52 Week Low"]).toFixed(2))}</div>
               <div className="text-sm opacity-75">All Time Low</div>
             </div>
           )}
-          {marketData["fiftyDayAverage"] && (
+          {marketData["50-Day Average"] && (
             <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-xl">
               <div className="text-sm opacity-90 mb-2">50-Day Average</div>
-              <div className="text-3xl font-bold mb-1">₹{formatNumberWithCommas(parseFloat(marketData["fiftyDayAverage"]).toFixed(2))}</div>
+              <div className="text-3xl font-bold mb-1">₹{formatNumberWithCommas(parseFloat(marketData["50-Day Average"]).toFixed(2))}</div>
               <div className="text-sm opacity-75">Moving Average</div>
             </div>
           )}
