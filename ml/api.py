@@ -12,14 +12,11 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import yfinance as yf
 from statsmodels.tsa.ar_model import AutoReg
-import datetime as dt
-import requests
 import numpy as np
-import requests_cache
+from cachetools import cached, TTLCache
 
-# Set up a cached session for yfinance to prevent rate limiting (429 Too Many Requests)
-yf_session = requests_cache.CachedSession('yfinance.cache', expire_after=3600)
-yf_session.headers['User-agent'] = 'financepro-ml-api/1.0'
+# Cache stock attributes (info, history, news) for 1 hour to bypass yfinance rate limiting
+stock_cache = TTLCache(maxsize=100, ttl=3600)
 
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -457,9 +454,10 @@ def fetch_periods_intervals():
 
 
 # Function to fetch the stock info
+@cached(cache=stock_cache)
 def fetch_stock_info(stock_ticker):
     # Pull the data for the first security
-    stock_data = yf.Ticker(stock_ticker, session=yf_session)
+    stock_data = yf.Ticker(stock_ticker)
 
     # Extract full of the stock
     stock_data_info = stock_data.info
@@ -630,9 +628,10 @@ async def get_stock_info(request: StockRequest):
     
     return response
 
+@cached(cache=stock_cache)
 def fetch_stock_history(stock_ticker, period, interval):
     # Pull the data for the first security
-    stock_data = yf.Ticker(stock_ticker, session=yf_session)
+    stock_data = yf.Ticker(stock_ticker)
 
     # Extract full of the stock
     stock_data_history = stock_data.history(period=period, interval=interval)[
@@ -642,14 +641,15 @@ def fetch_stock_history(stock_ticker, period, interval):
     # Return the stock data
     return stock_data_history
 
+@cached(cache=stock_cache)
 def fetch_stock_news(stock_ticker, stock_name, max_articles=10):
     """
-    Fetch recent financial news articles for a stock and analyze sentiment.
-    Returns average sentiment score (-1 to 1, where -1 is negative, 0 is neutral, 1 is positive)
+    Fetch recent news articles for a stock.
+    Returns a list of dictionaries with title, link, publisher, and timestamp.
     """
     try:
         # Use yfinance to get news
-        stock = yf.Ticker(stock_ticker, session=yf_session)
+        stock = yf.Ticker(stock_ticker)
         news_list = stock.news[:max_articles]  # Get recent news
         
         if not news_list:
@@ -795,7 +795,7 @@ def generate_stock_prediction(stock_ticker, stock_name=None):
     # Try to generate the predictions
     try:
         # Pull the data for the first security
-        stock_data = yf.Ticker(stock_ticker, session=yf_session)
+        stock_data = yf.Ticker(stock_ticker)
 
         # Extract the data for last 1yr with 1d interval
         stock_data_hist = stock_data.history(period="2y", interval="1d")
@@ -939,7 +939,7 @@ async def get_stock_prediction(request: StockRequest):
         raise HTTPException(status_code=404, detail="No data found for the selected stock")
     
     # Get stock name for news fetching
-    stock_info = yf.Ticker(stock_ticker, session=yf_session)
+    stock_info = yf.Ticker(stock_ticker)
     stock_name = stock_info.info.get('longName', request.stock)
     
     # Fetch stock prediction (train, test, forecast, predictions) with sentiment
