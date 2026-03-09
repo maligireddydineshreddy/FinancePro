@@ -145,11 +145,14 @@ const StockPred = () => {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         console.log(`Fetching stocks (attempt ${attempt})...`);
-        const { data } = await axios.post(
-          `${API_CONFIG.ML_API_URL}/get_stocks`,
-          {},
-          { timeout: 60000 } // 60 second timeout for cold starts
-        );
+        const response = await fetch(`${API_CONFIG.ML_API_URL}/get_stocks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+          signal: AbortSignal.timeout(60000)
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
 
         if (data && data.stocks && Array.isArray(data.stocks)) {
           const formattedStocks = data.stocks.map((stock) => ({
@@ -207,30 +210,33 @@ const StockPred = () => {
     setPredictionData([]);
 
     try {
-      const response = await axios.post(
-        `${API_CONFIG.ML_API_URL}/get_stock_prediction`,
-        {
+      const response = await fetch(`${API_CONFIG.ML_API_URL}/get_stock_prediction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           stock: selectedStock.value,
           stock_exchange: "NSE",
           period: selectedPeriod.value,
           interval: selectedInterval.value,
-        },
-        { timeout: 120000 } // 120 second timeout for ML model inference
-      );
+        }),
+        signal: AbortSignal.timeout(120000)
+      });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const data = await response.json();
 
-      if (!response.data) {
+      if (!data) {
         throw new Error("No data received from server");
       }
 
-      setStockInfo(response.data);
+      setStockInfo(data);
 
       // Store sentiment analysis info
-      if (response.data.sentiment_analysis) {
-        setSentimentInfo(response.data.sentiment_analysis);
+      if (data.sentiment_analysis) {
+        setSentimentInfo(data.sentiment_analysis);
       }
 
       // Transform historical data
-      const historicalData = response.data.historical_data;
+      const historicalData = data.historical_data;
       if (historicalData && historicalData.dates && historicalData.dates.length > 0) {
         const formattedData = historicalData.dates.map((date, index) => ({
           date: new Date(date).toLocaleDateString(),
@@ -245,7 +251,7 @@ const StockPred = () => {
       }
 
       // Transform prediction data
-      const stockPrediction = response.data.stock_prediction;
+      const stockPrediction = data.stock_prediction;
       if (stockPrediction && stockPrediction.train_dates && stockPrediction.train_dates.length > 0) {
         // Helper function to parse dates consistently
         const parseDate = (dateStr) => new Date(dateStr).getTime();
@@ -477,8 +483,8 @@ const StockPred = () => {
                     <div>
                       <span className="text-sm opacity-90">Overall Sentiment:</span>
                       <span className={`ml-2 text-lg font-bold ${sentimentInfo.sentiment_label === 'positive' ? 'text-green-200' :
-                          sentimentInfo.sentiment_label === 'negative' ? 'text-red-200' :
-                            'text-yellow-200'
+                        sentimentInfo.sentiment_label === 'negative' ? 'text-red-200' :
+                          'text-yellow-200'
                         }`}>
                         {sentimentInfo.sentiment_label?.toUpperCase() || 'NEUTRAL'}
                       </span>
@@ -504,7 +510,7 @@ const StockPred = () => {
                     {sentimentInfo.recent_news.slice(0, 3).map((news, idx) => (
                       <div key={idx} className="text-sm opacity-90 flex items-center gap-2">
                         <span className={`w-2 h-2 rounded-full ${news.sentiment_score > 0 ? 'bg-green-300' :
-                            news.sentiment_score < 0 ? 'bg-red-300' : 'bg-yellow-300'
+                          news.sentiment_score < 0 ? 'bg-red-300' : 'bg-yellow-300'
                           }`}></span>
                         <span className="truncate">{news.title}</span>
                       </div>
@@ -578,10 +584,10 @@ const StockPred = () => {
 
               {/* Risk Assessment Card */}
               <div className={`bg-gradient-to-br ${metrics.riskColor === "red"
-                  ? "from-red-500 to-red-600"
-                  : metrics.riskColor === "yellow"
-                    ? "from-yellow-500 to-yellow-600"
-                    : "from-green-500 to-green-600"
+                ? "from-red-500 to-red-600"
+                : metrics.riskColor === "yellow"
+                  ? "from-yellow-500 to-yellow-600"
+                  : "from-green-500 to-green-600"
                 } rounded-2xl shadow-xl p-6 text-white`}>
                 <div className="flex items-center justify-between mb-4">
                   <FaShieldAlt className="text-3xl opacity-80" />

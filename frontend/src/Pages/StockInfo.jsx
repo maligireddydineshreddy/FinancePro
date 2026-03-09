@@ -38,15 +38,18 @@ const StockInfo = () => {
     // Retry logic with exponential backoff
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        const response = await axios.post(
-          `${API_CONFIG.ML_API_URL}/get_stock_info`,
-          {
+        const response = await fetch(`${API_CONFIG.ML_API_URL}/get_stock_info`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             stock: selectedOption.value,
             stock_exchange: "NSE",
-          },
-          { timeout: 60000 } // 60 second timeout
-        );
-        setStockInfo(response.data);
+          }),
+          signal: AbortSignal.timeout(60000)
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        setStockInfo(data);
         setStockInfoError(null);
         return;
       } catch (error) {
@@ -55,7 +58,7 @@ const StockInfo = () => {
           await new Promise(r => setTimeout(r, attempt * 2000));
         } else {
           setStockInfoError(
-            error.code === 'ECONNABORTED' || error.message?.includes('timeout')
+            error.name === 'TimeoutError' || error.message?.includes('timeout')
               ? 'The ML service is taking too long to respond. It may be starting up — please try again in 30 seconds.'
               : 'Failed to load stock information. Please try again.'
           );
@@ -72,11 +75,14 @@ const StockInfo = () => {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         console.log(`Fetching stocks (attempt ${attempt})...`);
-        const { data } = await axios.post(
-          `${API_CONFIG.ML_API_URL}/get_stocks`,
-          {},
-          { timeout: 60000 } // 60 second timeout for cold starts
-        );
+        const response = await fetch(`${API_CONFIG.ML_API_URL}/get_stocks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+          signal: AbortSignal.timeout(60000)
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
 
         if (data && data.stocks && Array.isArray(data.stocks)) {
           const formattedStocks = data.stocks.map((stock) => ({
@@ -419,8 +425,8 @@ const StockInfo = () => {
                 <button
                   onClick={() => toggleFavorite(selectedStock.value)}
                   className={`p-4 rounded-xl transition-all transform hover:scale-110 ${favorites.includes(selectedStock.value)
-                      ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 shadow-lg'
-                      : 'bg-gray-100 text-gray-400 hover:bg-yellow-50 hover:text-yellow-500'
+                    ? 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 shadow-lg'
+                    : 'bg-gray-100 text-gray-400 hover:bg-yellow-50 hover:text-yellow-500'
                     }`}
                 >
                   <FaStar className="text-2xl" />
@@ -441,8 +447,8 @@ const StockInfo = () => {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${activeTab === tab.id
-                        ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg'
-                        : 'text-gray-600 hover:bg-gray-100'
+                      ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg'
+                      : 'text-gray-600 hover:bg-gray-100'
                       }`}
                   >
                     <Icon />
