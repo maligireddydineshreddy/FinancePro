@@ -14,6 +14,7 @@ import yfinance as yf
 from statsmodels.tsa.ar_model import AutoReg
 import numpy as np
 from cachetools import cached, TTLCache
+from curl_cffi import requests
 import random
 import time
 
@@ -473,6 +474,13 @@ _stock_info_cache = {}
 _stock_info_cache_time = {}
 STOCK_INFO_CACHE_TTL = 300  # Cache successful results for 5 minutes only
 
+def get_random_session():
+    """Create a curl_cffi session that impersonates random real browsers"""
+    impersonations = ["chrome110", "chrome120", "safari15_3", "safari15_5", "edge101"]
+    browser = random.choice(impersonations)
+    print(f"[get_random_session] Impersonating: {browser}")
+    return requests.Session(impersonate=browser)
+
 # Function to fetch the stock info (NO @cached — we only cache GOOD results manually)
 def fetch_stock_info(stock_ticker):
     # Check manual cache first
@@ -482,9 +490,11 @@ def fetch_stock_info(stock_ticker):
             print(f"[fetch_stock_info] Cache hit for {stock_ticker}")
             return _stock_info_cache[stock_ticker]
     
-    # Let yfinance use its OWN built-in curl_cffi session (it already impersonates Chrome)
+    # Generate a random browser session to bypass IP bans
+    custom_session = get_random_session()
+    
     print(f"[fetch_stock_info] Fetching fresh data for {stock_ticker}")
-    stock_data = yf.Ticker(stock_ticker)
+    stock_data = yf.Ticker(stock_ticker, session=custom_session)
 
     # Extract full info of the stock
     stock_data_info = stock_data.info
@@ -988,16 +998,17 @@ async def get_stock_prediction(request: StockRequest):
     stock_ticker = f"{ticker_symbol}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
     print(f"[get_stock_prediction] Stock Key: {request.stock} -> Ticker: {stock_ticker}")
     
-    # Fetch stock data (historical) — let yfinance use its built-in curl_cffi session
+    # Fetch stock data (historical) using rotating browser impersonation session
+    custom_session = get_random_session()
     try:
         stock_data = yf.download(
-            stock_ticker, period=request.period, interval=request.interval
+            stock_ticker, period=request.period, interval=request.interval, session=custom_session
         )
         if stock_data.empty:
             raise ValueError("No data found for the selected stock")
         
         # Get stock name for news fetching
-        stock_info = yf.Ticker(stock_ticker)
+        stock_info = yf.Ticker(stock_ticker, session=custom_session)
         stock_name = stock_info.info.get('longName', request.stock)
         
         # Fetch stock prediction (train, test, forecast, predictions) with sentiment
