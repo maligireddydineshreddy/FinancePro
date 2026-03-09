@@ -368,13 +368,15 @@ def fetch_stocks():
         
         if os.path.exists(csv_path):
             df = pd.read_csv(csv_path)
-            # Filter the data - use Security Id as key (Yahoo Finance ticker symbol)
-            df = df[["Security Code", "Issuer Name", "Security Id"]]
-            # Drop rows without a Security Id (can't look up on Yahoo Finance)
-            df = df.dropna(subset=["Security Id"])
-            df = df[df["Security Id"].astype(str).str.strip() != ""]
-            # Create a dictionary keyed by Security Id (ticker symbol) -> Issuer Name
-            stock_dict = dict(zip(df["Security Id"].astype(str).str.strip(), df["Issuer Name"]))
+            # Build dict: ticker symbol (Security Id) -> company name (Issuer Name)
+            # Using explicit iteration to avoid any column ordering issues
+            stock_dict = {}
+            for _, row in df.iterrows():
+                ticker = str(row.get("Security Id", "")).strip()
+                name = str(row.get("Issuer Name", "")).strip()
+                if ticker and ticker != "nan" and name and name != "nan":
+                    stock_dict[ticker] = name
+            print(f"[fetch_stocks] Loaded {len(stock_dict)} stocks. First 3 keys: {list(stock_dict.keys())[:3]}")
             # Cache the result
             _stocks_cache = stock_dict
             return stock_dict
