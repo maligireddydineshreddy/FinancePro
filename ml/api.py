@@ -619,10 +619,12 @@ async def get_stock_info(request: StockRequest):
         if isinstance(stock_data_info, dict) and "rate limit" in str(stock_data_info).lower():
             raise Exception("Rate limited")
     except Exception as e:
-        print(f"Yahoo Finance blocked the IP: {e}. Generating graceful realistic fallback data.")
+        import traceback
+        error_details = str(e)
+        print(f"Yahoo Finance blocked the IP or threw error: {error_details}. Generating graceful realistic fallback data.")
         # Graceful Fallback Data to prevent app crash on Render IPs
         stock_data_info = {
-            "Basic Information": {"longName": request.stock, "currency": "INR", "exchange": request.stock_exchange, "symbol": stock_ticker},
+            "Basic Information": {"longName": request.stock, "currency": f"ERR: {error_details}", "exchange": request.stock_exchange, "symbol": stock_ticker},
             "Market Data": {"currentPrice": 2450.50, "previousClose": 2430.10, "open": 2435.00, "dayLow": 2410.20, "dayHigh": 2465.80, "fiftyTwoWeekLow": 1900.00, "fiftyTwoWeekHigh": 2800.00, "fiftyDayAverage": 2350.00},
             "Volume and Shares": {"volume": 12500000, "regularMarketVolume": 12500000, "sharesOutstanding": 6500000000, "impliedSharesOutstanding": 6500000000, "floatShares": 3200000000},
             "Dividends and Yield": {"dividendRate": 15.50, "dividendYield": 0.0065, "payoutRatio": 0.15},

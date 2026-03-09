@@ -5,13 +5,10 @@ pyfin-sentiment>=0.1.0
 pandas>=2.2.0
 seaborn>=0.13.0
 matplotlib>=3.8.2
-yfinance>=0.2.32
+yfinance>=0.2.54
 statsmodels>=0.14.0
 numpy>=1.24.0
 requests>=2.31.0
-
-requests>=2.31.0
-numpy>=1.24.0
+curl_cffi>=0.7.4
 requests-cache>=1.2.0
 cachetools>=5.3.0
-curl_cffi>=0.7.1
