@@ -14,6 +14,8 @@ import yfinance as yf
 from statsmodels.tsa.ar_model import AutoReg
 import numpy as np
 from cachetools import cached, TTLCache
+from curl_cffi import requests
+import random
 
 # Cache stock attributes (info, history, news) for 1 hour to bypass yfinance rate limiting
 stock_cache = TTLCache(maxsize=100, ttl=3600)
@@ -368,44 +370,44 @@ def fetch_stocks():
         
         if os.path.exists(csv_path):
             df = pd.read_csv(csv_path)
-            # Build dict: company name (Issuer Name) -> ticker symbol (Security Id)
-            # Key = what user sees in dropdown, Value = Yahoo Finance ticker
+            # Build dict: ticker symbol (Security Id) -> company name (Issuer Name)
+            # This makes the dropdown show tickers ("HDFCBANK") instead of names
             stock_dict = {}
             for idx in range(len(df)):
                 row = df.iloc[idx]
                 ticker = str(row["Security Id"]).strip() if pd.notna(row["Security Id"]) else ""
                 name = str(row["Issuer Name"]).strip() if pd.notna(row["Issuer Name"]) else ""
                 if ticker and ticker != "nan" and name and name != "nan":
-                    stock_dict[name] = ticker
+                    stock_dict[ticker] = name
             print(f"[fetch_stocks] Loaded {len(stock_dict)} stocks.")
             print(f"[fetch_stocks] Sample: {list(stock_dict.items())[:3]}")
             # Cache the result
             _stocks_cache = stock_dict
             return stock_dict
         else:
-            # If file doesn't exist, return a default list of popular Indian stocks
+            # If file doesnt exist, return a default list
             print(f"Warning: {csv_path} not found. Using default stock list.")
             default_stocks = {
-                "Reliance Industries Ltd": "RELIANCE",
-                "Tata Consultancy Services Ltd": "TCS",
-                "HDFC Bank Ltd": "HDFCBANK",
-                "Infosys Ltd": "INFY",
-                "ICICI Bank Ltd": "ICICIBANK",
-                "Hindustan Unilever Ltd": "HINDUNILVR",
-                "State Bank of India": "SBIN",
-                "Bharti Airtel Ltd": "BHARTIARTL",
-                "ITC Ltd": "ITC",
-                "Kotak Mahindra Bank Ltd": "KOTAKBANK",
-                "Larsen & Toubro Ltd": "LT",
-                "Axis Bank Ltd": "AXISBANK",
-                "HCL Technologies Ltd": "HCLTECH",
-                "Asian Paints Ltd": "ASIANPAINT",
-                "Maruti Suzuki India Ltd": "MARUTI",
-                "Titan Company Ltd": "TITAN",
-                "Sun Pharmaceutical Industries Ltd": "SUNPHARMA",
-                "Bajaj Finance Ltd": "BAJFINANCE",
-                "Wipro Ltd": "WIPRO",
-                "Nestle India Ltd": "NESTLEIND"
+                "RELIANCE": "Reliance Industries Ltd",
+                "TCS": "Tata Consultancy Services Ltd",
+                "HDFCBANK": "HDFC Bank Ltd",
+                "INFY": "Infosys Ltd",
+                "ICICIBANK": "ICICI Bank Ltd",
+                "HINDUNILVR": "Hindustan Unilever Ltd",
+                "SBIN": "State Bank of India",
+                "BHARTIARTL": "Bharti Airtel Ltd",
+                "ITC": "ITC Ltd",
+                "KOTAKBANK": "Kotak Mahindra Bank Ltd",
+                "LT": "Larsen & Toubro Ltd",
+                "AXISBANK": "Axis Bank Ltd",
+                "HCLTECH": "HCL Technologies Ltd",
+                "ASIANPAINT": "Asian Paints Ltd",
+                "MARUTI": "Maruti Suzuki India Ltd",
+                "TITAN": "Titan Company Ltd",
+                "SUNPHARMA": "Sun Pharmaceutical Industries Ltd",
+                "BAJFINANCE": "Bajaj Finance Ltd",
+                "WIPRO": "Wipro Ltd",
+                "NESTLEIND": "Nestle India Ltd"
             }
             # Cache the default stocks
             _stocks_cache = default_stocks
@@ -414,28 +416,27 @@ def fetch_stocks():
         print(f"Error loading stocks: {e}")
         import traceback
         traceback.print_exc()
-        # Return default stocks if CSV loading fails
         default_stocks = {
-            "Reliance Industries Ltd": "RELIANCE",
-            "Tata Consultancy Services Ltd": "TCS",
-            "HDFC Bank Ltd": "HDFCBANK",
-            "Infosys Ltd": "INFY",
-            "ICICI Bank Ltd": "ICICIBANK",
-            "Hindustan Unilever Ltd": "HINDUNILVR",
-            "State Bank of India": "SBIN",
-            "Bharti Airtel Ltd": "BHARTIARTL",
-            "ITC Ltd": "ITC",
-            "Kotak Mahindra Bank Ltd": "KOTAKBANK",
-            "Larsen & Toubro Ltd": "LT",
-            "Axis Bank Ltd": "AXISBANK",
-            "HCL Technologies Ltd": "HCLTECH",
-            "Asian Paints Ltd": "ASIANPAINT",
-            "Maruti Suzuki India Ltd": "MARUTI",
-            "Titan Company Ltd": "TITAN",
-            "Sun Pharmaceutical Industries Ltd": "SUNPHARMA",
-            "Bajaj Finance Ltd": "BAJFINANCE",
-            "Wipro Ltd": "WIPRO",
-            "Nestle India Ltd": "NESTLEIND"
+            "RELIANCE": "Reliance Industries Ltd",
+            "TCS": "Tata Consultancy Services Ltd",
+            "HDFCBANK": "HDFC Bank Ltd",
+            "INFY": "Infosys Ltd",
+            "ICICIBANK": "ICICI Bank Ltd",
+            "HINDUNILVR": "Hindustan Unilever Ltd",
+            "SBIN": "State Bank of India",
+            "BHARTIARTL": "Bharti Airtel Ltd",
+            "ITC": "ITC Ltd",
+            "KOTAKBANK": "Kotak Mahindra Bank Ltd",
+            "LT": "Larsen & Toubro Ltd",
+            "AXISBANK": "Axis Bank Ltd",
+            "HCLTECH": "HCL Technologies Ltd",
+            "ASIANPAINT": "Asian Paints Ltd",
+            "MARUTI": "Maruti Suzuki India Ltd",
+            "TITAN": "Titan Company Ltd",
+            "SUNPHARMA": "Sun Pharmaceutical Industries Ltd",
+            "BAJFINANCE": "Bajaj Finance Ltd",
+            "WIPRO": "Wipro Ltd",
+            "NESTLEIND": "Nestle India Ltd"
         }
         # Cache the default stocks
         _stocks_cache = default_stocks
@@ -462,11 +463,30 @@ def fetch_periods_intervals():
     return periods
 
 
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; rv:122.0) Gecko/20100101 Firefox/122.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+]
+
+def get_random_session():
+    """Create a requests session with a random User-Agent to bypass Yahoo Finance IP bans"""
+    # Modern yfinance requires curl_cffi session to mimic real browsers properly
+    impersonate_targets = ["chrome", "safari", "edge", "firefox"]
+    session = requests.Session(impersonate=random.choice(impersonate_targets))
+    return session
+
 # Function to fetch the stock info
 @cached(cache=stock_cache)
 def fetch_stock_info(stock_ticker):
-    # Pull the data for the first security
-    stock_data = yf.Ticker(stock_ticker)
+    # Create session with random realistic browser headers
+    custom_session = get_random_session()
+    
+    # Pull the data for the first security bypassing IP ban
+    stock_data = yf.Ticker(stock_ticker, session=custom_session)
 
     # Extract full info of the stock
     stock_data_info = stock_data.info
@@ -575,10 +595,10 @@ async def get_stock_info(request: StockRequest):
     if request.stock not in stock_dict:
         raise HTTPException(status_code=400, detail="Invalid stock selected")
     
-    # Get the ticker symbol from the dict value (e.g., "HDFCBANK" from key "HDFC Bank Ltd")
-    ticker_symbol = stock_dict[request.stock]
-    stock_ticker = f"{ticker_symbol}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
-    print(f"[get_stock_info] Stock: {request.stock} -> Ticker: {stock_ticker}")
+    # The dropdown passes the ticker (Security Id) directly
+    # e.g., request.stock is "HDFCBANK"
+    stock_ticker = f"{request.stock}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
+    print(f"[get_stock_info] Stock Key: {request.stock} -> Ticker: {stock_ticker}")
     
     # Fetch the stock info from the API
     try:
@@ -961,19 +981,21 @@ async def get_stock_prediction(request: StockRequest):
     if request.stock not in stock_dict:
         raise HTTPException(status_code=400, detail="Invalid stock selected")
     
-    # Get the ticker symbol from the dict value (e.g., "HDFCBANK" from key "HDFC Bank Ltd")
-    ticker_symbol = stock_dict[request.stock]
-    stock_ticker = f"{ticker_symbol}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
-    print(f"[get_stock_prediction] Stock: {request.stock} -> Ticker: {stock_ticker}")
+    # The dropdown passes the ticker (Security Id) directly
+    stock_ticker = f"{request.stock}.{'BO' if request.stock_exchange == 'BSE' else 'NS'}"
+    print(f"[get_stock_prediction] Stock Key: {request.stock} -> Ticker: {stock_ticker}")
     
-    # Fetch stock data (historical)
+    # Fetch stock data (historical) using custom session
+    custom_session = get_random_session()
     try:
-        stock_data = fetch_stock_history(stock_ticker, request.period, request.interval)
+        stock_data = yf.download(
+            stock_ticker, period=request.period, interval=request.interval, session=custom_session
+        )
         if stock_data.empty:
             raise ValueError("No data found for the selected stock")
         
         # Get stock name for news fetching
-        stock_info = yf.Ticker(stock_ticker)
+        stock_info = yf.Ticker(stock_ticker, session=custom_session)
         stock_name = stock_info.info.get('longName', request.stock)
         
         # Fetch stock prediction (train, test, forecast, predictions) with sentiment
